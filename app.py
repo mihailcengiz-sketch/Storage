@@ -164,14 +164,14 @@ def page_dashboard():
     fig_tree = make_allocation_table_fig(enriched)
     st.plotly_chart(fig_tree, use_container_width=True)
 
-    # ── Holdings table ─────────────────────────────────────────────────────
-    st.subheader("Varlık Listesi")
+    # ── Holdings table (resimli katalog) ───────────────────────────────────
+    st.subheader("📒 Varlık Kataloğu")
     display = enriched[[
-        "coin_symbol", "net_quantity", "avg_buy_price",
+        "image", "coin_symbol", "net_quantity", "avg_buy_price",
         "current_price", "current_value", "pnl_usd", "pnl_pct", "change_24h",
     ]].copy()
     display.columns = [
-        "Coin", "Miktar", "Ort. Maliyet ($)",
+        "Logo", "Coin", "Miktar", "Ort. Maliyet ($)",
         "Güncel Fiyat ($)", "Değer ($)", "K/Z ($)", "K/Z (%)", "24s (%)",
     ]
     display = display.sort_values("Değer ($)", ascending=False)
@@ -181,6 +181,8 @@ def page_dashboard():
         use_container_width=True,
         hide_index=True,
         column_config={
+            "Logo":             st.column_config.ImageColumn("Logo", width="small"),
+            "Coin":             st.column_config.TextColumn(width="small"),
             "Miktar":           st.column_config.NumberColumn(format="%.6f"),
             "Ort. Maliyet ($)": st.column_config.NumberColumn(format="$%.6f"),
             "Güncel Fiyat ($)": st.column_config.NumberColumn(format="$%.6f"),
@@ -190,6 +192,33 @@ def page_dashboard():
             "24s (%)":          st.column_config.NumberColumn(format="%+.2f%%"),
         },
     )
+
+    # ── Görsel kart listesi (ikinci katalog görünümü) ──────────────────────
+    st.divider()
+    st.subheader("🖼️ Kart Görünümü")
+    cards_per_row = 4
+    sorted_enriched = enriched.sort_values("current_value", ascending=False).reset_index(drop=True)
+    for i in range(0, len(sorted_enriched), cards_per_row):
+        row_cards = sorted_enriched.iloc[i:i + cards_per_row]
+        cols = st.columns(cards_per_row)
+        for col, (_, coin) in zip(cols, row_cards.iterrows()):
+            with col:
+                with st.container(border=True):
+                    ic1, ic2 = st.columns([0.35, 0.65])
+                    with ic1:
+                        if coin["image"]:
+                            st.image(coin["image"], width=48)
+                    with ic2:
+                        st.markdown(f"**{coin['coin_symbol']}**")
+                        st.caption(COIN_NAMES.get(coin['coin_symbol'], coin['coin_symbol']))
+                    st.markdown(f"**{smart_price_format(coin['current_price'])}**")
+                    chg = coin["change_24h"]
+                    chg_color = "🟢" if chg >= 0 else "🔴"
+                    st.caption(f"{chg_color} 24s: {chg:+.2f}%")
+                    pnl = coin["pnl_usd"]
+                    pnl_color = "🟢" if pnl >= 0 else "🔴"
+                    st.caption(f"{pnl_color} K/Z: ${pnl:+,.2f} ({coin['pnl_pct']:+.1f}%)")
+                    st.caption(f"Değer: **${coin['current_value']:,.2f}**")
 
 
 # ════════════════════════════════════════════════════════════════════════════
